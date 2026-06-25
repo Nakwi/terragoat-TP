@@ -131,17 +131,27 @@ jobs:
         with:
           terraform_version: "1.15.7"
 
-      - name: Terraform Init (sans backend distant)
+      # Init avec le backend Azure distant (state stocke dans le storage account)
+      # Les valeurs sont passees ici (partial backend config) plutot que hardcodees dans le code
+      - name: Terraform Init (backend Azure)
         working-directory: terraform/azure
-        run: terraform init -backend=false
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=rg-terraform-state" \
+            -backend-config="storage_account_name=tfstateterragoat16060" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=terragoat.tfstate" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
 
       - name: Terraform Plan
         working-directory: terraform/azure
-        run: terraform plan -no-color
+        run: terraform plan -no-color -input=false
 
       - name: Resume du plan dans le Summary
         if: always()
         run: |
           echo "## Terraform Plan execute" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Le plan a ete genere sur la souscription Azure (lecture seule, aucune ressource creee)." >> $GITHUB_STEP_SUMMARY
+          echo "Le plan a ete genere sur la souscription Azure via OIDC." >> $GITHUB_STEP_SUMMARY
+          echo "State stocke dans le backend distant (storage account tfstateterragoat16060)." >> $GITHUB_STEP_SUMMARY
