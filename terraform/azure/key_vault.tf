@@ -1,4 +1,4 @@
-resource "azurerm_key_vault" "examplee" {
+resource "azurerm_key_vault" "example" {
   name                          = "terragoat-key-${var.environment}${random_integer.rnd_int.result}"
   location                      = azurerm_resource_group.example.location
   resource_group_name           = azurerm_resource_group.example.name
