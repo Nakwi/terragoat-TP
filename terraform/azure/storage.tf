@@ -6,7 +6,7 @@ resource "azurerm_managed_disk" "example" {
   create_option        = "Empty"
   disk_size_gb         = 1
   encryption_settings {
-    enabled = false
+    enabled = true
   }
   tags = {
     git_commit           = "d68d2897add9bc2203a5ed0632a5cdd8ff8cefb0"
