@@ -22,6 +22,7 @@ resource "azurerm_mssql_server" "mssql1" {
   resource_group_name           = azurerm_resource_group.example.name
   location                      = azurerm_resource_group.example.location
   version                       = "12.0"
+  minimum_tls_version           = "1.2"
   administrator_login           = "missadministrator"
   administrator_login_password  = azurerm_key_vault_secret.sql_password.value
   public_network_access_enabled = false
@@ -42,6 +43,7 @@ resource "azurerm_mssql_server" "mssql2" {
   resource_group_name           = azurerm_resource_group.example.name
   location                      = azurerm_resource_group.example.location
   version                       = "12.0"
+  minimum_tls_version           = "1.2"
   administrator_login           = "missadministrator"
   administrator_login_password  = azurerm_key_vault_secret.sql_password.value
   public_network_access_enabled = false
@@ -62,6 +64,7 @@ resource "azurerm_mssql_server" "mssql3" {
   resource_group_name           = azurerm_resource_group.example.name
   location                      = azurerm_resource_group.example.location
   version                       = "12.0"
+  minimum_tls_version           = "1.2"
   administrator_login           = "missadministrator"
   administrator_login_password  = azurerm_key_vault_secret.sql_password.value
   public_network_access_enabled = false
@@ -82,6 +85,7 @@ resource "azurerm_mssql_server" "mssql4" {
   resource_group_name           = azurerm_resource_group.example.name
   location                      = azurerm_resource_group.example.location
   version                       = "12.0"
+  minimum_tls_version           = "1.2"
   administrator_login           = "missadministrator"
   administrator_login_password  = azurerm_key_vault_secret.sql_password.value
   public_network_access_enabled = false
@@ -102,6 +106,7 @@ resource "azurerm_mssql_server" "mssql5" {
   resource_group_name           = azurerm_resource_group.example.name
   location                      = azurerm_resource_group.example.location
   version                       = "12.0"
+  minimum_tls_version           = "1.2"
   administrator_login           = "missadministrator"
   administrator_login_password  = azurerm_key_vault_secret.sql_password.value
   public_network_access_enabled = false
@@ -122,6 +127,7 @@ resource "azurerm_mssql_server" "mssql6" {
   resource_group_name           = azurerm_resource_group.example.name
   location                      = azurerm_resource_group.example.location
   version                       = "12.0"
+  minimum_tls_version           = "1.2"
   administrator_login           = "missadministrator"
   administrator_login_password  = azurerm_key_vault_secret.sql_password.value
   public_network_access_enabled = false
@@ -142,6 +148,7 @@ resource "azurerm_mssql_server" "mssql7" {
   resource_group_name           = azurerm_resource_group.example.name
   location                      = azurerm_resource_group.example.location
   version                       = "12.0"
+  minimum_tls_version           = "1.2"
   administrator_login           = "missadministrator"
   administrator_login_password  = azurerm_key_vault_secret.sql_password.value
   public_network_access_enabled = false
@@ -169,6 +176,7 @@ resource "azurerm_mssql_server_security_alert_policy" "alertpolicy1" {
   ]
   retention_days  = 20
   email_addresses = ["securityengineer@bridgecrew.io"]
+  email_account_admins = true
 }
 
 resource "azurerm_mssql_server_security_alert_policy" "alertpolicy2" {
@@ -183,6 +191,7 @@ resource "azurerm_mssql_server_security_alert_policy" "alertpolicy2" {
   ]
   retention_days  = 20
   email_addresses = ["securityengineer@bridgecrew.io"]
+  email_account_admins = true
 }
 
 resource "azurerm_mssql_server_security_alert_policy" "alertpolicy3" {
@@ -197,6 +206,7 @@ resource "azurerm_mssql_server_security_alert_policy" "alertpolicy3" {
   ]
   retention_days  = 20
   email_addresses = ["securityengineer@bridgecrew.io"]
+  email_account_admins = true
 }
 
 resource "azurerm_mssql_server_security_alert_policy" "alertpolicy4" {
@@ -211,6 +221,7 @@ resource "azurerm_mssql_server_security_alert_policy" "alertpolicy4" {
   ]
   retention_days  = 20
   email_addresses = ["securityengineer@bridgecrew.io"]
+  email_account_admins = true
 }
 
 resource "azurerm_mssql_server_security_alert_policy" "alertpolicy5" {
@@ -224,6 +235,8 @@ resource "azurerm_mssql_server_security_alert_policy" "alertpolicy5" {
     "Data_Exfiltration"
   ]
   retention_days = 20
+  email_addresses      = ["securityengineer@bridgecrew.io"]
+  email_account_admins = true
 }
 
 resource "azurerm_mssql_server_security_alert_policy" "alertpolicy6" {
@@ -238,6 +251,7 @@ resource "azurerm_mssql_server_security_alert_policy" "alertpolicy6" {
   ]
   retention_days  = 20
   email_addresses = ["securityengineer@bridgecrew.io"]
+  email_account_admins = true
 }
 
 resource "azurerm_mssql_server_security_alert_policy" "alertpolicy7" {
@@ -252,4 +266,5 @@ resource "azurerm_mssql_server_security_alert_policy" "alertpolicy7" {
   ]
   retention_days  = 20
   email_addresses = ["securityengineer@bridgecrew.io"]
+  email_account_admins = true
 }

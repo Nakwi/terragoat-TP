@@ -36,7 +36,9 @@ resource "azurerm_mssql_server_security_alert_policy" "example" {
     "Sql_Injection",
     "Data_Exfiltration"
   ]
-  retention_days = 20
+  retention_days       = 90
+  email_account_admins = true
+  email_addresses      = ["securityengineer@terragoat-tp.local"]
 }
 
 resource "azurerm_mysql_flexible_server" "example" {
