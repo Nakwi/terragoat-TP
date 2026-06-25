@@ -1,52 +1,157 @@
-name: IaC Security Scan
+name: IaC Security Scan - Azure
 
-# Déclenchement : à chaque push sur la branche master
 on:
   push:
     branches:
       - master
-  workflow_dispatch:   # permet aussi de lancer le workflow manuellement depuis l'onglet Actions
+    paths:
+      - "terraform/azure/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "terraform/azure/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write          # pour l'OIDC du backend (state)
 
 jobs:
+  # =========================================================
+  # JOB 1 : Sécurité (validate + scan Checkov bloquant)
+  # =========================================================
   security-scan:
-    name: Checkov + Terraform Validate
+    name: Validate + Checkov (blocage sur critiques)
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupère le code du repo
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      # 2. Scan de sécurité IaC avec Checkov (périmètre Azure uniquement)
-      - name: Analyse Checkov
-        id: checkov
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: terraform/azure
-          output_format: cli,json,sarif
-          output_file_path: console,checkov-report.json,checkov-report.sarif
-          soft_fail: true   # ne bloque pas la CI (TerraGoat a des failures volontaires)
-
-      # 3. Conserve les rapports en tant qu'artifacts téléchargeables
-      - name: Upload des rapports Checkov
-        uses: actions/upload-artifact@v4
-        if: always()        # même si une étape précédente échoue
-        with:
-          name: rapports-checkov
-          path: |
-            checkov-report.json
-            checkov-report.sarif
-          retention-days: 30
-
-      # 4. Installe Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.5.7"
+          terraform_version: "1.15.7"
 
-      # 5. Vérifie que le code Terraform est valide (sans connexion Azure)
       - name: Terraform Init & Validate
         working-directory: terraform/azure
         run: |
           terraform init -backend=false
           terraform validate
+
+      - name: Checkov - scan de securite IaC
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        continue-on-error: true
+        with:
+          directory: terraform/azure
+          framework: terraform
+          output_format: cli,json,sarif
+          output_file_path: reports/checkov
+          soft_fail: true
+          hard_fail_on: >-
+            CKV_AZURE_9,CKV_AZURE_10,
+            CKV_AZURE_53,CKV_AZURE_68,CKV_AZURE_113,
+            CKV_AZURE_28,CKV_AZURE_29,
+            CKV_AZURE_39,
+            CKV_AZURE_1,CKV_AZURE_149,CKV_AZURE_178,
+            CKV_AZURE_5
+
+      - name: Upload SARIF vers GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/checkov/results_sarif.sarif
+          category: checkov
+
+      - name: Upload des rapports Checkov
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rapports-checkov
+          path: reports/
+          retention-days: 90
+
+      - name: Resume du scan dans le Summary
+        if: always()
+        run: |
+          echo "## Resultat du scan de securite Checkov" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/checkov/results_json.json ]; then
+            PASSED=$(python3 -c "import json; print(json.load(open('reports/checkov/results_json.json'))['summary']['passed'])")
+            FAILED=$(python3 -c "import json; print(json.load(open('reports/checkov/results_json.json'))['summary']['failed'])")
+            echo "| Statut | Nombre |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | ${PASSED} |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | ${FAILED} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Rapport JSON introuvable." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Vulnerabilites critiques surveillees (blocage si echec) :** SSH/RDP, BDD publiques, SSL, role owner, VM SSH, AKS RBAC" >> $GITHUB_STEP_SUMMARY
+
+      - name: Verification du blocage critique
+        if: steps.checkov.outcome == 'failure'
+        run: |
+          echo "::error::Une ou plusieurs vulnerabilites CRITIQUES ont ete detectees. Pipeline bloque."
+          exit 1
+
+  # =========================================================
+  # JOB 2 : Terraform Plan (ne tourne QUE si la securite passe)
+  # =========================================================
+  terraform-plan:
+    name: Terraform Plan (Azure)
+    runs-on: ubuntu-latest
+    needs: security-scan
+    if: github.event_name == 'push'
+
+    env:
+      # Authentification du PROVIDER azurerm via Service Principal + secret
+      # (azurerm 2.99 ne supporte pas l'OIDC cote provider, ajoute en v3.7+)
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.7"
+
+      # Init avec backend Azure distant
+      # Le BACKEND utilise l'OIDC (supporte meme en 2.99 car c'est le core Terraform)
+      # use_azuread_auth = acces au state via Azure AD (role Storage Blob Data Contributor)
+      - name: Terraform Init (backend Azure)
+        working-directory: terraform/azure
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_USE_AZUREAD: "true"
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=rg-terraform-state" \
+            -backend-config="storage_account_name=tfstateterragoat16060" \
+            -backend-config="container_name=tfstate" \
+            -backend-config="key=terragoat.tfstate" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Terraform Plan
+        working-directory: terraform/azure
+        run: terraform plan -no-color -input=false
+
+      - name: Resume du plan dans le Summary
+        if: always()
+        run: |
+          echo "## Terraform Plan execute" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Plan genere sur la souscription Azure." >> $GITHUB_STEP_SUMMARY
+          echo "- Provider : authentification Service Principal (azurerm 2.99)" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend (state) : authentification OIDC (sans secret)" >> $GITHUB_STEP_SUMMARY
