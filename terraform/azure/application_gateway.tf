@@ -11,12 +11,12 @@ resource "azurerm_application_gateway" "network" {
 
   gateway_ip_configuration {
     name      = "my-gateway-ip-configuration"
-    subnet_id = "your subnet id"
+    subnet_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-terragoat/providers/Microsoft.Network/virtualNetworks/vnet-terragoat/subnets/subnet-appgw"
   }
 
   frontend_port {
     name = "name"
-    port = "port-no"
+    port = 80
   }
   ####Missing WAF block: As per azure best practices, it is important to have a web application firewall enabled at application gateway.
 
