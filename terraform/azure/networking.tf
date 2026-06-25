@@ -76,7 +76,7 @@ resource azurerm_network_security_group "bad_sg" {
     direction                  = "Inbound"
     name                       = "AllowSSH"
     priority                   = 200
-    protocol                   = "TCP"
+    protocol                   = "Tcp"
     source_address_prefix      = var.admin_ip
     source_port_range          = "*"
     destination_port_range     = "22-22"
@@ -88,7 +88,7 @@ resource azurerm_network_security_group "bad_sg" {
     direction                  = "Inbound"
     name                       = "AllowRDP"
     priority                   = 300
-    protocol                   = "TCP"
+    protocol                   = "Tcp"
     source_address_prefix      = var.admin_ip
     source_port_range          = "*"
     destination_port_range     = "3389-3389"
