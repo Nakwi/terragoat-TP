@@ -4,7 +4,6 @@ resource "azurerm_key_vault" "example" {
   resource_group_name           = azurerm_resource_group.example.name
   tenant_id                     = data.azurerm_client_config.current.tenant_id
   sku_name                      = "premium"
-  public_network_access_enabled = false
   access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
     object_id = data.azurerm_client_config.current.object_id
