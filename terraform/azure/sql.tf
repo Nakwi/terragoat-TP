@@ -12,7 +12,7 @@ resource "azurerm_sql_server" "example" {
   location                     = azurerm_resource_group.example.location
   version                      = "12.0"
   administrator_login          = "ariel"
-  administrator_login_password = "Aa12345678"
+  administrator_login_password = azurerm_key_vault_secret.sql_password.value
   tags = merge({
     environment = var.environment
     terragoat   = "true"
@@ -47,7 +47,7 @@ resource "azurerm_mysql_server" "example" {
   resource_group_name = azurerm_resource_group.example.name
 
   administrator_login          = "terragoat-${var.environment}"
-  administrator_login_password = random_string.password.result
+  administrator_login_password = random_password.password.result
 
   sku_name   = "B_Gen5_2"
   storage_mb = 5120
@@ -80,7 +80,7 @@ resource "azurerm_postgresql_server" "example" {
   geo_redundant_backup_enabled = false
   auto_grow_enabled            = true
   administrator_login          = "terragoat"
-  administrator_login_password = "Aa12345678"
+  administrator_login_password = azurerm_key_vault_secret.sql_password.value
   version                      = "9.5"
   ssl_enforcement_enabled      = false
   tags = {

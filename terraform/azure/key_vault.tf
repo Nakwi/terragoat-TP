@@ -13,6 +13,10 @@ resource "azurerm_key_vault" "example" {
     ]
     secret_permissions = [
       "set",
+      "get",
+      "list",
+      "delete",
+      "purge",
     ]
   }
   tags = merge({
@@ -29,7 +33,6 @@ resource "azurerm_key_vault" "example" {
     yor_trace            = "79afeacc-248a-4015-a4fa-76a6a57f06e2"
   })
 }
-
 resource "azurerm_key_vault_key" "generated" {
   name         = "terragoat-generated-certificate-${var.environment}"
   key_vault_id = azurerm_key_vault.example.id
@@ -54,11 +57,10 @@ resource "azurerm_key_vault_key" "generated" {
     yor_trace            = "afbc6e13-63d9-4e6c-8914-d58b7744b5dd"
   }
 }
-
 resource "azurerm_key_vault_secret" "secret" {
   key_vault_id = azurerm_key_vault.example.id
   name         = "terragoat-secret-${var.environment}"
-  value        = random_string.password.result
+  value        = random_password.password.result
   tags = {
     git_commit           = "f8ff847bb69370bbe03b3d2b70db586ff6c867fc"
     git_file             = "terraform/azure/key_vault.tf"
@@ -69,4 +71,12 @@ resource "azurerm_key_vault_secret" "secret" {
     git_repo             = "terragoat"
     yor_trace            = "40517524-f05d-485b-bfbe-3fa0dbee511e"
   }
+}
+
+resource "azurerm_key_vault_secret" "sql_password" {
+  name            = "sql-admin-password"
+  value           = random_password.password.result
+  key_vault_id    = azurerm_key_vault.example.id
+  content_type    = "text/plain"
+  expiration_date = "2027-12-31T00:00:00Z"
 }
