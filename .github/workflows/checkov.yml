@@ -48,7 +48,7 @@ jobs:
       - name: Checkov - scan de securite IaC
         id: checkov
         uses: bridgecrewio/checkov-action@v12
-        continue-on-error: true   # on gère le blocage nous-mêmes plus bas, pour pouvoir publier le SARIF d'abord
+        continue-on-error: true   # on gère le blocage nous-mêmes plus bas, pour publier le SARIF d'abord
         with:
           directory: terraform/azure
           framework: terraform
@@ -87,12 +87,12 @@ jobs:
           echo "## Resultat du scan de securite Checkov" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f reports/checkov/results_json.json ]; then
-            PASSED=$(grep -o '"passed":[0-9]*' reports/checkov/results_json.json | head -1 | grep -o '[0-9]*')
-            FAILED=$(grep -o '"failed":[0-9]*' reports/checkov/results_json.json | head -1 | grep -o '[0-9]*')
+            PASSED=$(python3 -c "import json; print(json.load(open('reports/checkov/results_json.json'))['summary']['passed'])")
+            FAILED=$(python3 -c "import json; print(json.load(open('reports/checkov/results_json.json'))['summary']['failed'])")
             echo "| Statut | Nombre |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
-            echo "| ✅ Passed | ${PASSED:-N/A} |" >> $GITHUB_STEP_SUMMARY
-            echo "| ❌ Failed | ${FAILED:-N/A} |" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | ${PASSED} |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | ${FAILED} |" >> $GITHUB_STEP_SUMMARY
           else
             echo "Rapport JSON introuvable." >> $GITHUB_STEP_SUMMARY
           fi
