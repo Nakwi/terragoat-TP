@@ -1,6 +1,5 @@
 name: IaC Security Scan - Azure
 
-# Déclenchement : à chaque push ou PR sur master qui touche le périmètre Azure
 on:
   push:
     branches:
@@ -13,42 +12,40 @@ on:
       - master
     paths:
       - "terraform/azure/**"
-  workflow_dispatch:   # lancement manuel possible
+  workflow_dispatch:
 
 permissions:
   contents: read
-  security-events: write   # nécessaire pour publier le SARIF dans l'onglet Security
+  security-events: write
+  id-token: write          # OBLIGATOIRE pour l'authentification OIDC vers Azure
 
 jobs:
+  # =========================================================
+  # JOB 1 : Sécurité (validate + scan Checkov bloquant)
+  # =========================================================
   security-scan:
     name: Validate + Checkov (blocage sur critiques)
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupère le code
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      # 2. Installe Terraform (version alignée sur le required_version du projet)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.15.7"
 
-      # 3. Vérifie que le code Terraform est syntaxiquement valide
       - name: Terraform Init & Validate
         working-directory: terraform/azure
         run: |
           terraform init -backend=false
           terraform validate
 
-      # 4. Scan de sécurité Checkov
-      #    - soft_fail : les findings mineurs / risques acceptés ne bloquent pas
-      #    - hard_fail_on : les checks CRITIQUES qui BLOQUENT le pipeline
       - name: Checkov - scan de securite IaC
         id: checkov
         uses: bridgecrewio/checkov-action@v12
-        continue-on-error: true   # on gère le blocage nous-mêmes plus bas, pour publier le SARIF d'abord
+        continue-on-error: true
         with:
           directory: terraform/azure
           framework: terraform
@@ -63,7 +60,6 @@ jobs:
             CKV_AZURE_1,CKV_AZURE_149,CKV_AZURE_178,
             CKV_AZURE_5
 
-      # 5. Publie les résultats dans l'onglet Security de GitHub (affichage natif)
       - name: Upload SARIF vers GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
@@ -71,7 +67,6 @@ jobs:
           sarif_file: reports/checkov/results_sarif.sarif
           category: checkov
 
-      # 6. Conserve les rapports en artifact téléchargeable
       - name: Upload des rapports Checkov
         uses: actions/upload-artifact@v4
         if: always()
@@ -80,7 +75,6 @@ jobs:
           path: reports/
           retention-days: 90
 
-      # 7. Écrit un résumé lisible dans le récap du run (onglet Summary)
       - name: Resume du scan dans le Summary
         if: always()
         run: |
@@ -99,9 +93,55 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Vulnerabilites critiques surveillees (blocage si echec) :** SSH/RDP, BDD publiques, SSL, role owner, VM SSH, AKS RBAC" >> $GITHUB_STEP_SUMMARY
 
-      # 8. Fait échouer le job si Checkov a détecté une vulnérabilité critique (hard_fail)
       - name: Verification du blocage critique
         if: steps.checkov.outcome == 'failure'
         run: |
           echo "::error::Une ou plusieurs vulnerabilites CRITIQUES ont ete detectees. Pipeline bloque."
           exit 1
+
+  # =========================================================
+  # JOB 2 : Terraform Plan (ne tourne QUE si la securite passe)
+  # =========================================================
+  terraform-plan:
+    name: Terraform Plan (Azure)
+    runs-on: ubuntu-latest
+    needs: security-scan          # dependance : pas de plan si la securite a echoue
+    if: github.event_name == 'push'   # plan uniquement sur push master, pas sur les PR
+
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Connexion Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.7"
+
+      - name: Terraform Init (sans backend distant)
+        working-directory: terraform/azure
+        run: terraform init -backend=false
+
+      - name: Terraform Plan
+        working-directory: terraform/azure
+        run: terraform plan -no-color
+
+      - name: Resume du plan dans le Summary
+        if: always()
+        run: |
+          echo "## Terraform Plan execute" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Le plan a ete genere sur la souscription Azure (lecture seule, aucune ressource creee)." >> $GITHUB_STEP_SUMMARY
