@@ -1,7 +1,7 @@
 resource "azurerm_application_gateway" "network" {
   name                = "example-appgateway"
   resource_group_name = "example-resourceGroup"
-  location            = "eastus"
+  location            = "spaincentral"
 
   sku {
     name     = "Standard_Small"

@@ -55,7 +55,6 @@ resource "azurerm_mysql_server" "example" {
 
   auto_grow_enabled                 = true
   backup_retention_days             = 7
-  infrastructure_encryption_enabled = true
   public_network_access_enabled     = false
   ssl_enforcement_enabled           = true
   tags = {
