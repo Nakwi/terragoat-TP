@@ -19,3 +19,9 @@ variable "admin_ip" {
   description = "IP publique autorisee pour l'administration SSH/RDP (a remplacer par l'IP reelle de l'admin ou la plage VPN)"
   default     = "86.221.106.162/32"
 }
+
+variable "admin_ssh_public_key" {
+  type        = string
+  description = "Cle SSH publique pour l'acces a la VM Linux"
+  default     = "ssh-rsa AAAAB3NzaC1yc2EXAMPLEKEYxxxxxxxxxxxxxxxx admin@terragoat"
+}

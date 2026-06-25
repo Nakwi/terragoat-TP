@@ -6,16 +6,18 @@ resource "random_password" "password" {
   min_upper   = 1
   min_special = 1
 }
-
 resource azurerm_linux_virtual_machine "linux_machine" {
   admin_username                  = "terragoat-linux"
-  admin_password                  = random_password.password.result
   location                        = var.location
   name                            = "terragoat-linux"
   network_interface_ids           = [azurerm_network_interface.ni_linux.id]
   resource_group_name             = azurerm_resource_group.example.name
   size                            = "Standard_F2"
-  disable_password_authentication = false
+  disable_password_authentication = true
+  admin_ssh_key {
+    username   = "terragoat-linux"
+    public_key = var.admin_ssh_public_key
+  }
   source_image_reference {
     publisher = "Canonical"
     offer     = "UbuntuServer"
@@ -26,7 +28,6 @@ resource azurerm_linux_virtual_machine "linux_machine" {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
-
   tags = merge({
     terragoat   = true
     environment = var.environment
@@ -41,7 +42,6 @@ resource azurerm_linux_virtual_machine "linux_machine" {
     yor_trace            = "736ef713-51b8-4178-ad69-406be81f6ef2"
   })
 }
-
 resource azurerm_windows_virtual_machine "windows_machine" {
   admin_password        = random_password.password.result
   admin_username        = "tg-${var.environment}"
@@ -54,14 +54,12 @@ resource azurerm_windows_virtual_machine "windows_machine" {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
-
   source_image_reference {
     publisher = "MicrosoftWindowsServer"
     offer     = "WindowsServer"
     sku       = "2016-Datacenter"
     version   = "latest"
   }
-
   tags = merge({
     terragoat   = true
     environment = var.environment
