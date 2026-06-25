@@ -44,7 +44,7 @@ resource "azurerm_policy_assignment" "example" {
   parameters           = <<PARAMETERS
 {
   "allowedLocations": {
-    "value": [ "Spain Central" ]
+    "value": [ "France Central" ]
   }
 }
 PARAMETERS
