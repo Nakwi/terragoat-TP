@@ -1,0 +1,52 @@
+name: IaC Security Scan
+
+# Déclenchement : à chaque push sur la branche master
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:   # permet aussi de lancer le workflow manuellement depuis l'onglet Actions
+
+jobs:
+  security-scan:
+    name: Checkov + Terraform Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Récupère le code du repo
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      # 2. Scan de sécurité IaC avec Checkov (périmètre Azure uniquement)
+      - name: Analyse Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/azure
+          output_format: cli,json,sarif
+          output_file_path: console,checkov-report.json,checkov-report.sarif
+          soft_fail: true   # ne bloque pas la CI (TerraGoat a des failures volontaires)
+
+      # 3. Conserve les rapports en tant qu'artifacts téléchargeables
+      - name: Upload des rapports Checkov
+        uses: actions/upload-artifact@v4
+        if: always()        # même si une étape précédente échoue
+        with:
+          name: rapports-checkov
+          path: |
+            checkov-report.json
+            checkov-report.sarif
+          retention-days: 30
+
+      # 4. Installe Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      # 5. Vérifie que le code Terraform est valide (sans connexion Azure)
+      - name: Terraform Init & Validate
+        working-directory: terraform/azure
+        run: |
+          terraform init -backend=false
+          terraform validate
