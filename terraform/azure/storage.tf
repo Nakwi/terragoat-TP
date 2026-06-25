@@ -16,7 +16,6 @@ resource "azurerm_managed_disk" "example" {
     yor_trace            = "d17da7b3-f1c5-4723-9f77-d1b9069459c7"
   }
 }
-
 resource "azurerm_storage_account" "example" {
   name                     = "tgsa${var.environment}${random_integer.rnd_int.result}"
   resource_group_name      = azurerm_resource_group.example.name
@@ -55,12 +54,9 @@ resource "azurerm_storage_account" "example" {
     yor_trace            = "23861ff4-c42d-495e-80ac-776c74035f43"
   }
 }
-
 resource "azurerm_storage_account_network_rules" "test" {
-  resource_group_name  = azurerm_resource_group.example.name
-  storage_account_name = azurerm_storage_account.example.name
-
-  default_action = "Deny"
-  ip_rules       = ["127.0.0.1"]
-  bypass         = ["Metrics"]
+  storage_account_id = azurerm_storage_account.example.id
+  default_action     = "Deny"
+  ip_rules           = ["127.0.0.1"]
+  bypass             = ["Metrics"]
 }

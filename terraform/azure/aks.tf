@@ -11,17 +11,7 @@ resource azurerm_kubernetes_cluster "k8s_cluster" {
     vm_size    = "Standard_B2s"
     node_count = 1
   }
-  addon_profile {
-    oms_agent {
-      enabled = false
-    }
-    kube_dashboard {
-      enabled = false
-    }
-  }
-  role_based_access_control {
-    enabled = true
-  }
+  role_based_access_control_enabled = true
   tags = {
     git_commit           = "898d5beaec7ffdef6df0d7abecff407362e2a74e"
     git_file             = "terraform/azure/aks.tf"

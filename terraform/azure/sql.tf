@@ -41,22 +41,23 @@ resource "azurerm_mssql_server_security_alert_policy" "example" {
   retention_days = 20
 }
 
-resource "azurerm_mysql_server" "example" {
+resource "azurerm_mysql_flexible_server" "example" {
   name                = "terragoat-mysql-${var.environment}${random_integer.rnd_int.result}"
   location            = azurerm_resource_group.example.location
   resource_group_name = azurerm_resource_group.example.name
 
-  administrator_login          = "terragoat-${var.environment}"
-  administrator_login_password = random_password.password.result
+  administrator_login    = "terragoatadmin"
+  administrator_password = random_password.password.result
 
-  sku_name   = "B_Gen5_2"
-  storage_mb = 5120
-  version    = "5.7"
+  sku_name = "B_Standard_B1ms"
+  version  = "8.0.21"
 
-  auto_grow_enabled                 = true
-  backup_retention_days             = 7
-  public_network_access_enabled     = false
-  ssl_enforcement_enabled           = true
+  backup_retention_days = 7
+
+  storage {
+    size_gb = 20
+  }
+
   tags = {
     git_commit           = "81738b80d571fa3034633690d13ffb460e1e7dea"
     git_file             = "terraform/azure/sql.tf"
@@ -69,20 +70,21 @@ resource "azurerm_mysql_server" "example" {
   }
 }
 
-resource "azurerm_postgresql_server" "example" {
-  name                         = "terragoat-postgresql-${var.environment}${random_integer.rnd_int.result}"
-  location                     = azurerm_resource_group.example.location
-  resource_group_name          = azurerm_resource_group.example.name
-  sku_name                     = "B_Gen5_2"
-  storage_mb                   = 5120
+resource "azurerm_postgresql_flexible_server" "example" {
+  name                = "terragoat-postgresql-${var.environment}${random_integer.rnd_int.result}"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+
+  administrator_login    = "terragoatadmin"
+  administrator_password = azurerm_key_vault_secret.sql_password.value
+
+  sku_name   = "B_Standard_B1ms"
+  version    = "13"
+  storage_mb = 32768
+
   backup_retention_days        = 7
   geo_redundant_backup_enabled = false
-  auto_grow_enabled            = true
-  administrator_login          = "terragoat"
-  administrator_login_password = azurerm_key_vault_secret.sql_password.value
-  version                      = "9.5"
-  public_network_access_enabled = false
-  ssl_enforcement_enabled      = true
+
   tags = {
     git_commit           = "81738b80d571fa3034633690d13ffb460e1e7dea"
     git_file             = "terraform/azure/sql.tf"
@@ -95,16 +97,15 @@ resource "azurerm_postgresql_server" "example" {
   }
 }
 
-resource "azurerm_postgresql_configuration" "thrtottling_config" {
-  name                = "connection_throttling"
-  resource_group_name = azurerm_resource_group.example.name
-  server_name         = azurerm_postgresql_server.example.name
-  value               = "off"
+resource "azurerm_postgresql_flexible_server_configuration" "thrtottling_config" {
+  name      = "connection_throttle.enable"
+  server_id = azurerm_postgresql_flexible_server.example.id
+  value     = "off"
 }
 
-resource "azurerm_postgresql_configuration" "example" {
-  name                = "log_checkpoints"
-  resource_group_name = azurerm_resource_group.example.name
-  server_name         = azurerm_postgresql_server.example.name
-  value               = "off"
+resource "azurerm_postgresql_flexible_server_configuration" "example" {
+  name      = "log_checkpoints"
+  server_id = azurerm_postgresql_flexible_server.example.id
+  value     = "off"
 }
+

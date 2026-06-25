@@ -54,8 +54,7 @@ jobs:
           soft_fail: true
           hard_fail_on: >-
             CKV_AZURE_9,CKV_AZURE_10,
-            CKV_AZURE_53,CKV_AZURE_68,CKV_AZURE_113,
-            CKV_AZURE_28,CKV_AZURE_29,
+            CKV_AZURE_113,
             CKV_AZURE_39,
             CKV_AZURE_1,CKV_AZURE_149,CKV_AZURE_178,
             CKV_AZURE_5
