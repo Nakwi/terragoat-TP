@@ -7,7 +7,7 @@ on:
       - master
     paths:
       - "terraform/azure/**"
-      - ".github/workflows/iac-security.yml"
+      - ".github/workflows/**"
   pull_request:
     branches:
       - master
@@ -17,7 +17,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write   # permet d'uploader le SARIF dans l'onglet Security
+  security-events: write   # nécessaire pour publier le SARIF dans l'onglet Security
 
 jobs:
   security-scan:
@@ -43,10 +43,12 @@ jobs:
           terraform validate
 
       # 4. Scan de sécurité Checkov
-      #    - soft_fail global : les findings mineurs / risques acceptés ne bloquent pas
-      #    - hard_fail_on : la liste des checks CRITIQUES qui, eux, BLOQUENT le pipeline
+      #    - soft_fail : les findings mineurs / risques acceptés ne bloquent pas
+      #    - hard_fail_on : les checks CRITIQUES qui BLOQUENT le pipeline
       - name: Checkov - scan de securite IaC
+        id: checkov
         uses: bridgecrewio/checkov-action@v12
+        continue-on-error: true   # on gère le blocage nous-mêmes plus bas, pour pouvoir publier le SARIF d'abord
         with:
           directory: terraform/azure
           framework: terraform
@@ -61,7 +63,15 @@ jobs:
             CKV_AZURE_1,CKV_AZURE_149,CKV_AZURE_178,
             CKV_AZURE_5
 
-      # 5. Conserve les rapports (meme si le scan a bloque, grace a always())
+      # 5. Publie les résultats dans l'onglet Security de GitHub (affichage natif)
+      - name: Upload SARIF vers GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/checkov/results_sarif.sarif
+          category: checkov
+
+      # 6. Conserve les rapports en artifact téléchargeable
       - name: Upload des rapports Checkov
         uses: actions/upload-artifact@v4
         if: always()
@@ -69,3 +79,29 @@ jobs:
           name: rapports-checkov
           path: reports/
           retention-days: 90
+
+      # 7. Écrit un résumé lisible dans le récap du run (onglet Summary)
+      - name: Resume du scan dans le Summary
+        if: always()
+        run: |
+          echo "## Resultat du scan de securite Checkov" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/checkov/results_json.json ]; then
+            PASSED=$(grep -o '"passed":[0-9]*' reports/checkov/results_json.json | head -1 | grep -o '[0-9]*')
+            FAILED=$(grep -o '"failed":[0-9]*' reports/checkov/results_json.json | head -1 | grep -o '[0-9]*')
+            echo "| Statut | Nombre |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | ${PASSED:-N/A} |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | ${FAILED:-N/A} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Rapport JSON introuvable." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Vulnerabilites critiques surveillees (blocage si echec) :** SSH/RDP, BDD publiques, SSL, role owner, VM SSH, AKS RBAC" >> $GITHUB_STEP_SUMMARY
+
+      # 8. Fait échouer le job si Checkov a détecté une vulnérabilité critique (hard_fail)
+      - name: Verification du blocage critique
+        if: steps.checkov.outcome == 'failure'
+        run: |
+          echo "::error::Une ou plusieurs vulnerabilites CRITIQUES ont ete detectees. Pipeline bloque."
+          exit 1
