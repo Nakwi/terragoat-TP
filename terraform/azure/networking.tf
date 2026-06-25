@@ -89,7 +89,7 @@ resource azurerm_network_security_group "bad_sg" {
     name                       = "AllowRDP"
     priority                   = 300
     protocol                   = "TCP"
-    source_address_prefix      = var.admin_ip
+    source_address_prefix      = "*"
     source_port_range          = "*"
     destination_port_range     = "3389-3389"
     destination_address_prefix = "*"
