@@ -1,7 +1,7 @@
 data azurerm_subscription current_subscription {}
 
 resource "azurerm_role_definition" "example" {
-  name        = "my-custom-role"
+  name        = "terragoat-custom-role-${var.environment}-${random_integer.rnd_int.result}"
   scope       = data.azurerm_subscription.current_subscription.id
   description = "This is a custom role created via Terraform"
 
