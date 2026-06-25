@@ -1,52 +1,71 @@
-name: IaC Security Scan
+name: IaC Security Scan - Azure
 
-# Déclenchement : à chaque push sur la branche master
+# Déclenchement : à chaque push ou PR sur master qui touche le périmètre Azure
 on:
   push:
     branches:
       - master
-  workflow_dispatch:   # permet aussi de lancer le workflow manuellement depuis l'onglet Actions
+    paths:
+      - "terraform/azure/**"
+      - ".github/workflows/iac-security.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "terraform/azure/**"
+  workflow_dispatch:   # lancement manuel possible
+
+permissions:
+  contents: read
+  security-events: write   # permet d'uploader le SARIF dans l'onglet Security
 
 jobs:
   security-scan:
-    name: Checkov + Terraform Validate
+    name: Validate + Checkov (blocage sur critiques)
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupère le code du repo
+      # 1. Récupère le code
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      # 2. Scan de sécurité IaC avec Checkov (périmètre Azure uniquement)
-      - name: Analyse Checkov
-        id: checkov
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: terraform/azure
-          output_format: cli,json,sarif
-          output_file_path: console,checkov-report.json,checkov-report.sarif
-          soft_fail: true   # ne bloque pas la CI (TerraGoat a des failures volontaires)
-
-      # 3. Conserve les rapports en tant qu'artifacts téléchargeables
-      - name: Upload des rapports Checkov
-        uses: actions/upload-artifact@v4
-        if: always()        # même si une étape précédente échoue
-        with:
-          name: rapports-checkov
-          path: |
-            checkov-report.json
-            checkov-report.sarif
-          retention-days: 30
-
-      # 4. Installe Terraform
+      # 2. Installe Terraform (version alignée sur le required_version du projet)
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.15.7"
 
-      # 5. Vérifie que le code Terraform est valide (sans connexion Azure)
+      # 3. Vérifie que le code Terraform est syntaxiquement valide
       - name: Terraform Init & Validate
         working-directory: terraform/azure
         run: |
           terraform init -backend=false
           terraform validate
+
+      # 4. Scan de sécurité Checkov
+      #    - soft_fail global : les findings mineurs / risques acceptés ne bloquent pas
+      #    - hard_fail_on : la liste des checks CRITIQUES qui, eux, BLOQUENT le pipeline
+      - name: Checkov - scan de securite IaC
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform/azure
+          framework: terraform
+          output_format: cli,json,sarif
+          output_file_path: reports/checkov
+          soft_fail: true
+          hard_fail_on: >-
+            CKV_AZURE_9,CKV_AZURE_10,
+            CKV_AZURE_53,CKV_AZURE_68,CKV_AZURE_113,
+            CKV_AZURE_28,CKV_AZURE_29,
+            CKV_AZURE_39,
+            CKV_AZURE_1,CKV_AZURE_149,CKV_AZURE_178,
+            CKV_AZURE_5
+
+      # 5. Conserve les rapports (meme si le scan a bloque, grace a always())
+      - name: Upload des rapports Checkov
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rapports-checkov
+          path: reports/
+          retention-days: 90
