@@ -43,7 +43,7 @@ resource "azurerm_subscription_policy_assignment" "example" {
   parameters           = <<PARAMETERS
 {
   "allowedLocations": {
-    "value": [ "France Central" ]
+    "value": [ "Sweden Central" ]
   }
 }
 PARAMETERS
