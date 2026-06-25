@@ -17,7 +17,7 @@ on:
 permissions:
   contents: read
   security-events: write
-  id-token: write          # OBLIGATOIRE pour l'authentification OIDC vers Azure
+  id-token: write          # pour l'OIDC du backend (state)
 
 jobs:
   # =========================================================
@@ -105,12 +105,14 @@ jobs:
   terraform-plan:
     name: Terraform Plan (Azure)
     runs-on: ubuntu-latest
-    needs: security-scan          # dependance : pas de plan si la securite a echoue
-    if: github.event_name == 'push'   # plan uniquement sur push master, pas sur les PR
+    needs: security-scan
+    if: github.event_name == 'push'
 
     env:
-      ARM_USE_OIDC: "true"
+      # Authentification du PROVIDER azurerm via Service Principal + secret
+      # (azurerm 2.99 ne supporte pas l'OIDC cote provider, ajoute en v3.7+)
       ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
@@ -119,22 +121,19 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
 
-      - name: Connexion Azure (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.15.7"
 
-      # Init avec le backend Azure distant (state stocke dans le storage account)
-      # Les valeurs sont passees ici (partial backend config) plutot que hardcodees dans le code
+      # Init avec backend Azure distant
+      # Le BACKEND utilise l'OIDC (supporte meme en 2.99 car c'est le core Terraform)
+      # use_azuread_auth = acces au state via Azure AD (role Storage Blob Data Contributor)
       - name: Terraform Init (backend Azure)
         working-directory: terraform/azure
+        env:
+          ARM_USE_OIDC: "true"
+          ARM_USE_AZUREAD: "true"
         run: |
           terraform init \
             -backend-config="resource_group_name=rg-terraform-state" \
@@ -153,5 +152,6 @@ jobs:
         run: |
           echo "## Terraform Plan execute" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Le plan a ete genere sur la souscription Azure via OIDC." >> $GITHUB_STEP_SUMMARY
-          echo "State stocke dans le backend distant (storage account tfstateterragoat16060)." >> $GITHUB_STEP_SUMMARY
+          echo "Plan genere sur la souscription Azure." >> $GITHUB_STEP_SUMMARY
+          echo "- Provider : authentification Service Principal (azurerm 2.99)" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend (state) : authentification OIDC (sans secret)" >> $GITHUB_STEP_SUMMARY
