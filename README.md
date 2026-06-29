@@ -265,5 +265,5 @@ terraform destroy
 
 ---
 
-**Ryan Corsyn** · M1 Cloud, Sécurité & Infrastructure · Ynov Marseille
+**Ryan Corsyn - Panariello Matteo** · M1 Cloud, Sécurité & Infrastructure · Ynov
 *Projet basé sur [bridgecrewio/terragoat](https://github.com/bridgecrewio/terragoat)*
