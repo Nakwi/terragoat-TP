@@ -1,6 +1,6 @@
 # TerraGoat-TP — Sécurisation d'une infrastructure Azure as Code
 
-> **TP DevSecOps — Ynov Marseille · M1 Cloud, Sécurité & Infrastructure**
+> **TP DevSecOps — M1 Cloud, Sécurité & Infrastructure**
 > Analyse statique IaC avec Checkov · Remédiation des vulnérabilités · Pipeline CI/CD · Déploiement réel sur Azure
 
 [![Checkov](https://img.shields.io/badge/Scanner-Checkov-0E7C86)](https://www.checkov.io/)
